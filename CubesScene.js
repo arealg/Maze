@@ -43,8 +43,7 @@ var cubeVertices = new Float32Array([
   -0.5, -0.5, -0.5, -0.5, 0.5,  -0.5, -0.5,  0.5,  0.5, -0.5,  -0.5, 0.5
 
 ]);
-<<<<<<< HEAD
-=======
+
 
 var cubeVertexNormals = new Float32Array([
    0.0,  0.0,  1.0,  0.0,  0.0,  1.0,  0.0,  0.0,  1.0,  0.0,  0.0,  1.0,   // Front face
@@ -54,7 +53,6 @@ var cubeVertexNormals = new Float32Array([
    1.0,  0.0,  0.0,  1.0,  0.0,  0.0,  1.0,  0.0,  0.0,  1.0,  0.0,  0.0,   // Right face
   -1.0,  0.0,  0.0, -1.0,  0.0,  0.0, -1.0,  0.0,  0.0, -1.0,  0.0,  0.0   // Left face
 ]);
->>>>>>> f580285ebd15b9ab175520617fd5e697ab6c92c2
 
 var cubeTextureCoordinates = new Float32Array([
   0.0,  0.0,     1.0,  0.0,     1.0,  1.0,     0.0,  1.0,
@@ -129,10 +127,10 @@ var buttons = [];
 
 var canvas = document.getElementById('webgl');
 var canvas1 = document.getElementById('maze');
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-canvas1.width = window.innerWidth;
-canvas1.height = window.innerHeight;
+// canvas.width = window.innerWidth;
+// canvas.height = window.innerHeight;
+// canvas1.width = window.innerWidth;
+// canvas1.height = window.innerHeight;
 var ctx = canvas1.getContext("2d");
 
 var eyeX1, eyeY1;
@@ -162,25 +160,27 @@ var VSHADER_SOURCE =
   'attribute highp vec3 a_VertexPosition;\n' +
   'attribute highp vec2 a_TextureCoord;\n' +
   'attribute highp vec3 a_VertexNormal;\n' +
-
   'uniform highp mat4 u_NormalMatrix;\n' +
   'uniform highp mat4 u_MvpMatrix;\n' +
   'uniform highp mat4 u_ModelMatrix;\n' +
-
   'varying highp vec2 v_TextureCoord;\n' +
-  'varying highp vec4 v_vertexPosition;\n' +
-  'varying highp vec4 v_TransformedNormal;\n' +
-
   'varying highp vec3 v_Lighting;\n' +
   'uniform highp vec3 u_ambientLight\n;'+
   'uniform highp vec3 u_directLightColor\n;'+
   'uniform highp vec3 u_PointLightPos\n;'+
   'void main() {\n' +
   '  gl_Position = u_MvpMatrix * vec4(a_VertexPosition, 1.0);\n' +
-
   '  v_TextureCoord = a_TextureCoord;\n' +
-  '  v_vertexPosition = u_ModelMatrix * vec4(a_VertexPosition, 1.0);\n' +
-  '  v_TransformedNormal = u_NormalMatrix * vec4(a_VertexNormal, 1.0);\n' +
+
+  '  highp vec3 ambientLight = u_ambientLight;\n' +
+  '  highp vec3 directionalLightColor = u_directLightColor;\n' +
+  '  highp vec3 pointLightPosition = u_PointLightPos;\n' +
+  '  vec4 vertexPosition = u_ModelMatrix * vec4(a_VertexPosition, 1.0);\n' +
+  '  highp vec3 lightDirection = normalize(pointLightPosition - a_VertexPosition.xyz);\n' +
+  '  highp vec4 transformedNormal = u_NormalMatrix * vec4(a_VertexNormal, 1.0);\n' +
+  '  highp float directionalW = max(dot(transformedNormal.xyz, lightDirection), 0.0);\n' +
+  '  v_Lighting = ambientLight + (directionalLightColor * directionalW);\n' +
+
 
   '}\n';
 
@@ -189,46 +189,85 @@ var FSHADER_SOURCE =
   '#ifdef GL_ES\n' +
   'precision mediump float;\n' +
   '#endif\n' +
-
-
   'varying highp vec3 v_Lighting;\n' +
-
   'varying highp vec2 v_TextureCoord;\n' +
-  'varying highp vec4 v_vertexPosition;\n' +
-  'varying highp vec4 v_TransformedNormal;\n' +
-
   'uniform sampler2D u_Sampler;\n' +
-
-  'uniform highp vec3 u_ambientLight\n;'+
-  'uniform highp vec3 u_directLightColor\n;'+
-  'uniform highp vec3 u_PointLightPos\n;'+
-  'uniform highp vec3 u_PositionCamera\n;'+
-
-
   'void main() {\n' +
-  '  highp vec3 ambientLight = u_ambientLight;\n' +
-  '  highp vec3 directionalLightColor = u_directLightColor;\n' +
-  '  highp vec3 pointLightPosition = u_PointLightPos;\n' +
-  '  highp vec3 PointLightingSpecularColor = vec3(1.0, 1.0, 1.0);\n' +
-
-  '  highp float materialShiness = 0.4;\n' +
-
-  '  highp vec3 normal = normalize(v_TransformedNormal.xyz);\n'+
-  '  highp vec3 eyeDirection = normalize(u_PositionCamera-v_vertexPosition.xyz);\n'+
-
-  '  highp vec3 lightDirection = normalize((pointLightPosition - v_vertexPosition.xyz));\n' +
-  '  highp vec3 reflectionDirection = reflect(-lightDirection, normal);\n'+
-
-  '  highp float specularLightWeighting = pow(max(dot(reflectionDirection, eyeDirection), 0.0), materialShiness);\n'+
-  '  highp float directionalW = max(dot(v_TransformedNormal.xyz, lightDirection), 0.0);\n' +
-
-  '  highp vec3 v_Lighting = ambientLight + (PointLightingSpecularColor * specularLightWeighting) + (directionalLightColor * directionalW);\n' + //
-
   '  highp vec4 texelColor = texture2D(u_Sampler, vec2(v_TextureCoord.s, v_TextureCoord.t));\n' +
-  '  gl_FragColor = vec4(texelColor.rgb * v_Lighting.rgb, texelColor.a);\n' +
-
-
+  '  gl_FragColor = vec4(texelColor.rgb * v_Lighting, texelColor.a);\n' +
   '}\n';
+
+// var VSHADER_SOURCE =
+//   'attribute highp vec3 a_VertexPosition;\n' +
+//   'attribute highp vec2 a_TextureCoord;\n' +
+//   'attribute highp vec3 a_VertexNormal;\n' +
+
+//   'uniform highp mat4 u_NormalMatrix;\n' +
+//   'uniform highp mat4 u_MvpMatrix;\n' +
+//   'uniform highp mat4 u_ModelMatrix;\n' +
+
+//   'varying highp vec2 v_TextureCoord;\n' +
+//   'varying highp vec4 v_vertexPosition;\n' +
+//   'varying highp vec4 v_TransformedNormal;\n' +
+
+//   'varying highp vec3 v_Lighting;\n' +
+//   'uniform highp vec3 u_ambientLight\n;'+
+//   'uniform highp vec3 u_directLightColor\n;'+
+//   'uniform highp vec3 u_PointLightPos\n;'+
+//   'void main() {\n' +
+//   '  gl_Position = u_MvpMatrix * vec4(a_VertexPosition, 1.0);\n' +
+
+//   '  v_TextureCoord = a_TextureCoord;\n' +
+//   '  v_vertexPosition = u_ModelMatrix * vec4(a_VertexPosition, 1.0);\n' +
+//   '  v_TransformedNormal = u_NormalMatrix * vec4(a_VertexNormal, 1.0);\n' +
+
+//   '}\n';
+
+// // Fragment shader program
+// var FSHADER_SOURCE =
+//   '#ifdef GL_ES\n' +
+//   'precision mediump float;\n' +
+//   '#endif\n' +
+
+
+//   'varying highp vec3 v_Lighting;\n' +
+
+//   'varying highp vec2 v_TextureCoord;\n' +
+//   'varying highp vec4 v_vertexPosition;\n' +
+//   'varying highp vec4 v_TransformedNormal;\n' +
+
+//   'uniform sampler2D u_Sampler;\n' +
+
+//   'uniform highp vec3 u_ambientLight\n;'+
+//   'uniform highp vec3 u_directLightColor\n;'+
+//   'uniform highp vec3 u_PointLightPos\n;'+
+//   'uniform highp vec3 u_PositionCamera\n;'+
+
+
+//   'void main() {\n' +
+//   '  highp vec3 ambientLight = u_ambientLight;\n' +
+//   '  highp vec3 directionalLightColor = u_directLightColor;\n' +
+//   '  highp vec3 pointLightPosition = u_PointLightPos;\n' +
+//   '  highp vec3 PointLightingSpecularColor = vec3(1.0, 1.0, 1.0);\n' +
+
+//   '  highp float materialShiness = 0.4;\n' +
+
+//   '  highp vec3 normal = normalize(v_TransformedNormal.xyz);\n'+
+//   '  highp vec3 eyeDirection = normalize(u_PositionCamera-v_vertexPosition.xyz);\n'+
+
+//   '  highp vec3 lightDirection = normalize((pointLightPosition - v_vertexPosition.xyz));\n' +
+//   '  highp vec3 reflectionDirection = reflect(-lightDirection, normal);\n'+
+
+//   '  highp float specularLightWeighting = pow(max(dot(reflectionDirection, eyeDirection), 0.0), materialShiness);\n'+
+//   '  highp float directionalW = max(dot(v_TransformedNormal.xyz, lightDirection), 0.0);\n' +
+
+//   '  highp vec3 v_Lighting = ambientLight + (PointLightingSpecularColor * specularLightWeighting) + (directionalLightColor * directionalW);\n' + //
+
+//   '  highp vec4 texelColor = texture2D(u_Sampler, vec2(v_TextureCoord.s, v_TextureCoord.t));\n' +
+//   '  gl_FragColor = vec4(texelColor.rgb * v_Lighting.rgb, texelColor.a);\n' +
+
+
+//   '}\n';
 
 
 function Shape(vertices, TextureCoordinates, vertexIndices, vertexNormals, src) {
@@ -289,7 +328,7 @@ Shape.prototype.preDraw = function() {
   gl.enableVertexAttribArray(textureCoordAttribute);
   gl.enableVertexAttribArray(vertexNormalAttribute);
 
-  gl.bindBuffer(gl.ARRAY_BUFFER, this.verticesBuffer);
+  gl.bindBuffer(gl.ARRAY_BUFFER, this.verticesNormalBuffer);
   gl.vertexAttribPointer(vertexNormalAttribute, 3, gl.FLOAT, false, 0, 0);
   gl.bindBuffer(gl.ARRAY_BUFFER, this.verticesBuffer);
   gl.vertexAttribPointer(vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
@@ -382,8 +421,9 @@ function main() {
         pos2.x = Math.floor((Math.random() * 15));
         pos2.y = Math.floor((Math.random() * 15));
       }
-      eyeX, eyeX1 = pos2.x;
-      eyeY, eyeY1 = pos2.y;
+
+      eyeX, eyeX1 = 7;
+      eyeY, eyeY1 = 7;
       pos1.x = pos2.x;
       pos1.y = pos2.y;
 
@@ -454,7 +494,7 @@ function keyhandler(pos1) {
 
     if (pos1.x != 0 && pos1.y != 0){
 
-     if(buttons[39]) { // D
+     if(buttons[58]) { // D 68
         if(!camera){
           eyeX1 += -sin(angle) * k;
          eyeY1 += cos(angle) * k;
@@ -462,8 +502,8 @@ function keyhandler(pos1) {
          eyeX1 -= -sin(angle) * k;
          eyeY1 -= cos(angle) * k;
         }
-     }
-     if (buttons[37]) { // A
+     } 
+     if (buttons[65]) { // A 65
         if(!camera){
           eyeX1 -= -sin(angle) * k;
           eyeY1 -= cos(angle) * k;
@@ -521,12 +561,12 @@ function keyhandler(pos1) {
 
      }
 
-     if(buttons[68]) { // DERECHA 68
+     if(buttons[39]) { // 39 DERECHA 68
       if(camera){
         angle -= 2/0.5;
       }
      }
-     if (buttons[65]) { // IZQUIERDA 65
+     if (buttons[37]) { // 37 IZQUIERDA 65
       if(camera){
         angle += 2/0.5;
       }
@@ -566,10 +606,10 @@ function drawScene(gl, u_MvpMatrix, mMatrix, vMatrix, pMatrix, mvpMatrix,TheMaze
 
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   u_MvpMatrix = gl.getUniformLocation(gl.program, 'u_MvpMatrix');
-  var u_PointLightPos = gl.getUniformLocation(gl.program, 'u_PointLightPoss');
+  var u_PointLightPos = gl.getUniformLocation(gl.program, 'u_PointLightPos');
   var u_ambientLight = gl.getUniformLocation(gl.program, 'u_ambientLight');
   var u_directLightColor = gl.getUniformLocation(gl.program, 'u_directLightColor');
-  var u_PositionCamera = gl.getUniformLocation(gl.program, 'u_PositionCamera');
+  // var u_PositionCamera = gl.getUniformLocation(gl.program, 'u_PositionCamera');
 
   var u_ModelMatrix = gl.getUniformLocation(gl.program, 'u_ModelMatrix');
 
@@ -595,16 +635,18 @@ function drawScene(gl, u_MvpMatrix, mMatrix, vMatrix, pMatrix, mvpMatrix,TheMaze
     sky.preDraw();
     gl.drawElements(gl.TRIANGLES, floor.numElements, gl.UNSIGNED_SHORT, 0);
   }else{
-    vMatrix.setLookAt(eyeX, 7, eyeY, 7, 7, 0, 0, -1, 0);
-    //mMatrix.setTranslate(7, 7, 0);
-    // vMatrix.setLookAt(7, 7, 8, 7, 7, 5, 0, -1, 0);
+    //console.log(eyeX, eyeY);
+    //vMatrix.setLookAt(Math.floor(eyeX + 0.5), Math.floor(eyeY +), 7, 7, 7, 0, -1, 0, 0);
     // mMatrix.setTranslate(eyeX, eyeY, 0);
+    vMatrix.setLookAt(7, 7, 8, 7, 7, 5, 0, -1, 0);
+    mMatrix.setTranslate(eyeX, eyeY, 0);
     mvpMatrix.set(pMatrix).multiply(vMatrix).multiply(mMatrix);
     gl.uniformMatrix4fv(u_MvpMatrix, false, mvpMatrix.elements);
 
     person.preDraw();
     gl.drawElements(gl.TRIANGLES, person.numElements, gl.UNSIGNED_SHORT, 0);
   }
+  console.log(lamp);
   
   pMatrix.setPerspective(90, canvas.width/canvas.height, 0.1, 100);
 
@@ -612,11 +654,13 @@ function drawScene(gl, u_MvpMatrix, mMatrix, vMatrix, pMatrix, mvpMatrix,TheMaze
 
   gl.uniform3fv(u_directLightColor, lamp);
  
+  // ligthpuntual = [eyeX, eyeY, eyeZ];
   ligthpuntual = [eyeX, eyeY, eyeZ];
+
   gl.uniform3fv(u_PointLightPos, ligthpuntual);
 
-  eyeposition = [eyeX, eyeY, eyeZ];
-  gl.uniform3fv(u_PointLightPos, eyeposition);
+  // eyeposition = [eyeX, eyeY, eyeZ];
+  // gl.uniform3fv(u_PositionCamera, eyeposition);
 
   gl.uniformMatrix4fv(u_ModelMatrix, false, mMatrix.elements);
   gl.uniformMatrix4fv(u_MvpMatrix, false, mvpMatrix.elements);
@@ -655,19 +699,19 @@ function drawScene(gl, u_MvpMatrix, mMatrix, vMatrix, pMatrix, mvpMatrix,TheMaze
   gl.drawElements(gl.TRIANGLES, floor.numElements, gl.UNSIGNED_SHORT, 0);
 
 
-  ctx.fillStyle = 'red';
-  ctx.font = '30pt VTFMisterPixelRegular';
-  ctx.fillText(totalTiempo, (canvas.width)-50, 50);
-  ctx.fillStyle = 'white';
-  ctx.font = '15pt VTFMisterPixelRegular';
-  var control0 = 'CONTROL:';
-  ctx.fillText(control0, 20, (canvas.height)-80)
-  var control = 'TO MOVE: Arrow up and down, A and D left and right';
-  ctx.fillText(control, 20, (canvas.height)-50)
-  var control1 = 'TO CONTROL CAMERA: Arrow left and right, W and S up and down';
-  ctx.fillText(control1, 20, (canvas.height)-30)
-  var control3 = 'LANTERN: Space';
-  ctx.fillText(control3, 20, (canvas.height)-10)
+  // ctx.fillStyle = 'red';
+  // ctx.font = '30pt VTFMisterPixelRegular';
+  // ctx.fillText(totalTiempo, (canvas.width)-50, 50);
+  // ctx.fillStyle = 'white';
+  // ctx.font = '15pt VTFMisterPixelRegular';
+  // var control0 = 'CONTROL:';
+  // ctx.fillText(control0, 20, (canvas.height)-80)
+  // var control = 'TO MOVE: Arrow up and down, A and D left and right';
+  // ctx.fillText(control, 20, (canvas.height)-50)
+  // var control1 = 'TO CONTROL CAMERA: Arrow left and right, W and S up and down';
+  // ctx.fillText(control1, 20, (canvas.height)-30)
+  // var control3 = 'LANTERN: Space';
+  // ctx.fillText(control3, 20, (canvas.height)-10)
 
 
   if(win){
